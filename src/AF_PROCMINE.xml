@@ -1,0 +1,16 @@
+<Command xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="extension-1.0.xsd" Name="AF PROCMINE" Language="Python" LanguageVersion="3">
+	<Subcommand Name="" Occurrence="Optional">
+		<Parameter Name="PROCESS_ID" ParameterType="VariableName"/>
+		<Parameter Name="ACTIVITY_NAME" ParameterType="VariableName"/>
+		<Parameter Name="START_DATE" ParameterType="VariableName"/>
+		<Parameter Name="END_DATE" ParameterType="VariableName"/>
+	</Subcommand>
+	<Subcommand Name="SAVE" Occurrence="Optional">
+		<Parameter Name="MODELFILE" ParameterType="OutputFile"/>
+	</Subcommand>
+	<Subcommand Name="OUTFILE" Occurrence="Optional">
+		<Parameter Name="LOGFILE" ParameterType="OutputFile"/>
+		<Parameter Name="LOGACCESSMODE" ParameterType="Keyword"/>
+	</Subcommand>
+	<Subcommand Name="HELP" Occurrence="Optional"/>
+</Command>

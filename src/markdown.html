@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<meta http-equiv="x-ua-compatible" content="IE=9" >
+
+<title>AF PROCMINE Extension Command</title>
+
+<link rel="stylesheet" type="text/css" href="extsyntax.css" />
+
+</head>
+
+<body>
+<h1>AF PROCMINE Extension Command</h1>
+
+<p>Run process mining on a set of cases.</p>
+<div class="syntax">
+<p>AF PROCMINE <em>variables</em><sup>&#42;</sup></p>
+<p>/SAVE MODELFILE=&ldquo;<em>filespec</em>&rdquo;</p>
+
+<p><sup>&#42;</sup> Required<br/>
+<sup>&#42;&#42;</sup> Default</p>
+</div>
+<p>AF PROCMINE /HELP prints this information and does nothing else.</p>
+
+<pre class="example"><code>AF PROCMINE PROCESS_ID="Case-id" ACTIVITY_NAME="Activity" START_DATE="Start-Date" END_DATE="End-Date" /SAVE MODELFILE=process_model.json.
+</code></pre>
+
+<h2>MODELFILE</h2>
+
+<p>MODELFILE causes the process model to be written to the specified file.</p>
+
+<p>The AF PROCMINE command requires the Python Integration Plug-in package.</p>
+
+<p>&copy; Copyright Analytical Factory Ltd. 2026</p>
+
+</body>
+
+</html>
