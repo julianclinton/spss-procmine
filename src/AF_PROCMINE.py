@@ -22,10 +22,15 @@ AF PROCMINE PROCESS_ID="Case-id" ACTIVITY_NAME="Activity" START_DATE="Start-Date
   /OUTFILE LOGFILE="process_log.txt" LOGACCESSMODE=APPEND
 
 """
-import spss, spssaux, spssdata
+import spss, spssaux
 from spssaux import u
 from extension import Template, Syntax, checkrequiredparams, processcmd
-import sys, inspect, logging, tempfile, os, csv, codecs, gettext, os.path, textwrap, time, locale
+import sys, inspect, logging, json, tempfile, os, csv, codecs, gettext, os.path, textwrap, time, locale
+
+def new_activity(activity_name):
+    """Create a new activity dictionary"""
+    activity = { "activity_name": activity_name, "from_activities": {}, "to_activities": {}}
+    return activity
 
 def processmine(process_id, activity_name, start_date, end_date="", outmodelfile=None,
                 logfile=None, logaccessmode="overwrite"):
@@ -39,20 +44,29 @@ def processmine(process_id, activity_name, start_date, end_date="", outmodelfile
 
     logger.info("Running process mining with process_id={process_id}".format(process_id=process_id))
 
-    varDict = spssaux.VariableDict([process_id, activity_name, start_date, end_date])
+    process_model = { "activities": {} }
+    fields = [process_id, activity_name, start_date, end_date]
+
+    varDict = spssaux.VariableDict(fields)
+    varIndices = [varDict[var].index for var in fields]
 
     #cur=spss.Cursor(accessType='r', cvtDates='ALL')
-    # cur=spss.Cursor(accessType='r')
-    # for i in range(spss.GetCaseCount()):
-    #     row = cur.fetchone()
-    # cur.close()
+    cur=spss.Cursor(var=varIndices, accessType='r')
+    for i in range(spss.GetCaseCount()):
+        case = cur.fetchone()
+        # For now assume process_id and activity_name are strings, start_date and end_date are dates
+        process_id_value = case[0].strip()
+        activity_name_value = case[1].strip()
+        start_date_value = case[2]
+        end_date_value = case[3] if len(case) > 3 else None
+    cur.close()
 
-    data = spssdata.Spssdata([process_id, activity_name, start_date, end_date], names=True)
-    case = None
-    for row in data:
-        logger.info("Row: %s" % str(row))
-        case = row
-    data.CClose()
+    # data = spssdata.Spssdata(fields, names=True)
+    # case = None
+    # for row in data:
+    #     logger.info("Row: %s" % str(row))
+    #     case = row
+    # data.CClose()
 
     spss.StartProcedure("Output")
     table = spss.BasePivotTable("Sample Table","OMS subtype")
@@ -63,11 +77,11 @@ def processmine(process_id, activity_name, start_date, end_date="", outmodelfile
     table = spss.BasePivotTable("Info ","Info")
     table.Append(spss.Dimension.Place.row,"rowdim",hideLabels=True)
     rowLabel = spss.CellText.String("1")
-    table[(rowLabel,)] = spss.CellText.String("""First line of Warnings table content
-    Second line of Warnings table content""")
+    table[(rowLabel,)] = spss.CellText.String("""First line of table content
+    Version 1""")
 
-    textBlock1 = spss.TextBlock("Variable information", str(varDict))
-    textBlock2 = spss.TextBlock("Last row", str(case))
+    textBlock1 = spss.TextBlock("1. Variable information", str(varDict))
+    textBlock2 = spss.TextBlock("2. Last row", str(case))
 
     spss.EndProcedure()
 
