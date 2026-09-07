@@ -12,27 +12,64 @@ helptext="""The AF PROCMINE command requires the Python Integration Plug-in.
 
 AF PROCMINE PROCESS_ID ACTIVITY_NAME START_DATE END_DATE
   [/SAVE MODELFILE=filespec]
+  [/OUTFILE LOGFILE=filespec LOGACCESSMODE={OVERWRITE* | APPEND}]
 
 AF PROCMINE /HELP prints this information and does nothing else.
 
 Example:
 AF PROCMINE PROCESS_ID="Case-id" ACTIVITY_NAME="Activity" START_DATE="Start-Date" END_DATE="End-Date" 
-  /SAVE MODELFILE=process_model.json.
-  [/OUTFILE LOGFILE=filespec LOGACCESSMODE={OVERWRITE* | APPEND}]
+  /SAVE MODELFILE="process_model.json"
+  /OUTFILE LOGFILE="process_log.txt" LOGACCESSMODE=APPEND
 
 """
-import spss, spssaux
+import spss, spssaux, spssdata
 from spssaux import u
 from extension import Template, Syntax, checkrequiredparams, processcmd
 import sys, inspect, logging, tempfile, os, csv, codecs, gettext, os.path, textwrap, time, locale
 
-def processmine(process_id, activity_name, start_date, end_date="", modelfile=None,
+def processmine(process_id, activity_name, start_date, end_date="", outmodelfile=None,
                 logfile=None, logaccessmode="overwrite"):
     """Run Process mining."""
     global logger
     logger = Logger(logfile=logfile, accessmode=logaccessmode)
 
+    activedsname = spss.ActiveDataset()
+    if activedsname is None:
+        raise ValueError(("""The required active dataset name was not specified"""))
+
     logger.info("Running process mining with process_id={process_id}".format(process_id=process_id))
+
+    varDict = spssaux.VariableDict([process_id, activity_name, start_date, end_date])
+
+    #cur=spss.Cursor(accessType='r', cvtDates='ALL')
+    # cur=spss.Cursor(accessType='r')
+    # for i in range(spss.GetCaseCount()):
+    #     row = cur.fetchone()
+    # cur.close()
+
+    data = spssdata.Spssdata([process_id, activity_name, start_date, end_date], names=True)
+    case = None
+    for row in data:
+        logger.info("Row: %s" % str(row))
+        case = row
+    data.CClose()
+
+    spss.StartProcedure("Output")
+    table = spss.BasePivotTable("Sample Table","OMS subtype")
+    table.SimplePivotTable(rowlabels = ["1","2"],
+        collabels = ["A","B"],
+        cells = ["1A","1B","2A","2B"])    
+
+    table = spss.BasePivotTable("Info ","Info")
+    table.Append(spss.Dimension.Place.row,"rowdim",hideLabels=True)
+    rowLabel = spss.CellText.String("1")
+    table[(rowLabel,)] = spss.CellText.String("""First line of Warnings table content
+    Second line of Warnings table content""")
+
+    textBlock1 = spss.TextBlock("Variable information", str(varDict))
+    textBlock2 = spss.TextBlock("Last row", str(case))
+
+    spss.EndProcedure()
 
 def Run(args):
     """Execute the PROCMINE command"""
@@ -44,7 +81,7 @@ def Run(args):
         Template("ACTIVITY_NAME", subc="", var="activity_name", ktype="varname"),
         Template("START_DATE", subc="", var="start_date", ktype="varname"),
         Template("END_DATE", subc="", var="end_date", ktype="varname"),
-        Template("MODELFILE", subc="SAVE", ktype="literal", var="modelfile"),
+        Template("MODELFILE", subc="SAVE", ktype="literal", var="outmodelfile"),
         Template("LOGFILE", subc="OUTFILE", var="logfile", ktype="literal"),
         Template("LOGACCESSMODE", subc="OUTFILE", var="logaccessmode", ktype="str", vallist=("overwrite", "append")),
     ])
