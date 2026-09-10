@@ -32,6 +32,14 @@ def new_activity(activity_name):
     activity = { "activity_name": activity_name, "from_activities": {}, "to_activities": {}}
     return activity
 
+def update_activity_count(activity_dict, activity_name):
+    if activity_name not in activity_dict:
+        activity_dict[activity_name] = 0
+    activity_dict[activity_name] = (
+        activity_dict[activity_name] + 1
+    )
+
+
 def processmine(process_id, activity_name, start_date, end_date="", outmodelfile=None,
                 logfile=None, logaccessmode="overwrite"):
     """Run Process mining."""
@@ -44,14 +52,21 @@ def processmine(process_id, activity_name, start_date, end_date="", outmodelfile
 
     logger.info("Running process mining with process_id={process_id}".format(process_id=process_id))
 
+    # Traces are sequences of activities for each process_id. Each trace is a list of activities, where each activity is a dictionary with keys "activity_name", "start_date", "end_date", "from_activities" and "to_activities".  The from_activities and to_activities are dictionaries mapping activity names to counts of how many times the transition occurred.
+    traces = {}
     process_model = { "activities": {} }
     fields = [process_id, activity_name, start_date, end_date]
+
+    start_activities = {}
+    end_activities = {}
 
     varDict = spssaux.VariableDict(fields)
     varIndices = [varDict[var].index for var in fields]
 
     #cur=spss.Cursor(accessType='r', cvtDates='ALL')
     cur=spss.Cursor(var=varIndices, accessType='r')
+    current_trace = None
+    prev_activity = None
     for i in range(spss.GetCaseCount()):
         case = cur.fetchone()
         # For now assume process_id and activity_name are strings, start_date and end_date are dates
@@ -59,6 +74,35 @@ def processmine(process_id, activity_name, start_date, end_date="", outmodelfile
         activity_name_value = case[1].strip()
         start_date_value = case[2]
         end_date_value = case[3] if len(case) > 3 else None
+
+        activity = new_activity(activity_name_value)
+        activity["start_date"] = start_date_value
+        activity["end_date"] = end_date_value
+
+        # If still processing the same trace, add the activity to the current trace. Otherwise, start a new trace.
+        if process_id_value == current_trace:
+            # Add activity to current trace
+            traces[process_id_value].append(activity)
+        else:
+            # Start a new trace
+            current_trace = process_id_value
+            traces[process_id_value] = [activity]
+
+            # Count the number of times this activity is a start activity
+            update_activity_count(start_activities, activity_name_value)
+
+            # prev_activity was the last activity in the previous trace
+            # so count the number of times that activity is an end activity
+            if prev_activity is not None:
+                update_activity_count(end_activities, prev_activity)                
+
+        prev_activity = activity_name_value
+
+    # Remember to count the last activity in the last trace as an end activity
+    if prev_activity is not None:   
+        update_activity_count(end_activities, prev_activity)
+
+    # Close the cursor and prepare for output
     cur.close()
 
     # data = spssdata.Spssdata(fields, names=True)
@@ -69,10 +113,18 @@ def processmine(process_id, activity_name, start_date, end_date="", outmodelfile
     # data.CClose()
 
     spss.StartProcedure("Output")
-    table = spss.BasePivotTable("Sample Table","OMS subtype")
-    table.SimplePivotTable(rowlabels = ["1","2"],
-        collabels = ["A","B"],
-        cells = ["1A","1B","2A","2B"])    
+
+    start_activity_keys = list(start_activities.keys())
+    table = spss.BasePivotTable("Start Activities","OMS subtype")
+    table.SimplePivotTable(rowlabels = start_activity_keys,
+        collabels = ["Count"],
+        cells = [start_activities[activity] for activity in start_activity_keys])
+
+    end_activity_keys = list(end_activities.keys())
+    table = spss.BasePivotTable("End Activities","OMS subtype")
+    table.SimplePivotTable(rowlabels = end_activity_keys,
+        collabels = ["Count"],
+        cells = [end_activities[activity] for activity in end_activity_keys])
 
     table = spss.BasePivotTable("Info ","Info")
     table.Append(spss.Dimension.Place.row,"rowdim",hideLabels=True)
